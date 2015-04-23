@@ -95,6 +95,9 @@
 #include "generic/SpatialConvolutionMap.c"
 #include "THGenerateFloatTypes.h"
 
+#include "generic/SpatialSampledConvolution.c"
+#include "THGenerateFloatTypes.h"
+
 #include "generic/SpatialSubSampling.c"
 #include "THGenerateFloatTypes.h"
 
@@ -163,6 +166,7 @@ int luaopen_libnn(lua_State *L)
   nn_FloatSpatialFullConvolutionMap_init(L);
   nn_FloatSpatialConvolutionMM_init(L);
   nn_FloatSpatialConvolutionMap_init(L);
+  nn_FloatSpatialSampledConvolution_init(L);
   nn_FloatSpatialSubSampling_init(L);
   nn_FloatSpatialMaxPooling_init(L);
   nn_FloatSpatialAveragePooling_init(L);
@@ -204,6 +208,7 @@ int luaopen_libnn(lua_State *L)
   nn_DoubleSpatialFullConvolutionMap_init(L);
   nn_DoubleSpatialConvolutionMM_init(L);
   nn_DoubleSpatialConvolutionMap_init(L);
+  nn_DoubleSpatialSampledConvolution_init(L);
   nn_DoubleSpatialSubSampling_init(L);
   nn_DoubleSpatialMaxPooling_init(L);
   nn_DoubleSpatialAveragePooling_init(L);
