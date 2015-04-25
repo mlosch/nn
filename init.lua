@@ -17,6 +17,7 @@ include('View.lua')
 include('Select.lua')
 include('Narrow.lua')
 include('InputAdaptiveNarrow.lua')
+include('SpatialBorderNarrow.lua')
 include('Replicate.lua')
 include('Transpose.lua')
 
