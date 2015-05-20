@@ -98,7 +98,7 @@ function Module:share(mlp, ...)
          mlp.accUpdateGradParameters = mlp.sharedAccUpdateGradParameters
       end
    end
-   return self      
+   return self
 end
 
 function Module:clone(...)
@@ -113,36 +113,11 @@ function Module:clone(...)
    return clone
 end
 
-local function recursiveType(param, type_str)
-   if torch.type(param) == 'table' then
-      for i = 1, #param do
-         param[i] = recursiveType(param[i], type_str)
-      end
-   else
-      if torch.typename(param) and 
-        torch.typename(param):find('torch%..+Tensor') then
-         param = param:type(type_str)
-      end
-   end
-   return param
-end
-
 function Module:type(type)
    assert(type, 'Module: must provide a type to convert to')
    -- find all tensors and convert them
    for key,param in pairs(self) do
-      -- Many modules (like CDivTable) have output or gradInput fields which
-      -- are table's of tensors.  To be general we need to recursively
-      -- cast fields that may be nested tables.
-      if key ~= 'modules' then
-        self[key] = recursiveType(self[key], type)
-      end
-   end
-   -- find submodules in classic containers 'modules'
-   if self.modules then
-      for _,module in ipairs(self.modules) do
-         module:type(type)
-      end
+      self[key] = nn.utils.recursiveType(param, type)
    end
    return self
 end
@@ -171,7 +146,7 @@ function Module:getParameters()
       if storageAndOffset == nil then
           return nil
       end
-      local _, offset = unpack(storageAndOffset)
+      local _, offset = table.unpack(storageAndOffset)
       return offset
    end
 
@@ -182,17 +157,22 @@ function Module:getParameters()
          return torch.Tensor()
       end
       local Tensor = parameters[1].new
+      local dtype = parameters[1]:type()
 
       local storages = {}
       local nParameters = 0
       for k = 1,#parameters do
+         if parameters[k]:type() ~= dtype then
+            error("Inconsistent parameter types. " .. parameters[k]:type() ..
+                  " ~= " .. dtype)
+         end
          local storage = parameters[k]:storage()
          if not storageInSet(storages, storage) then
             storages[torch.pointer(storage)] = {storage, nParameters}
             nParameters = nParameters + storage:size()
          end
       end
-      
+
       local flatParameters = Tensor(nParameters):fill(1)
       local flatStorage = flatParameters:storage()
 
@@ -205,7 +185,7 @@ function Module:getParameters()
          parameters[k]:zero()
       end
 
-      local maskParameters=  flatParameters:float():clone()
+      local maskParameters = flatParameters:float():clone()
       local cumSumOfHoles = flatParameters:float():cumsum(1)
       local nUsedParameters = nParameters - cumSumOfHoles[#cumSumOfHoles]
       local flatUsedParameters = Tensor(nUsedParameters)
@@ -214,13 +194,13 @@ function Module:getParameters()
       for k = 1,#parameters do
          local offset = cumSumOfHoles[parameters[k]:storageOffset()]
          parameters[k]:set(flatUsedStorage,
-         parameters[k]:storageOffset() - offset,
-         parameters[k]:size(),
-         parameters[k]:stride())
+                           parameters[k]:storageOffset() - offset,
+                           parameters[k]:size(),
+                           parameters[k]:stride())
       end
 
       for _, storageAndOffset in pairs(storages) do
-         local k, v = unpack(storageAndOffset)
+         local k, v = table.unpack(storageAndOffset)
          flatParameters[{{v+1,v+k:size()}}]:copy(Tensor():set(k))
       end
 
@@ -273,11 +253,11 @@ function Module:findModules(typename, container)
     if (torch.type(self.modules) == 'table') then
       for i = 1, #self.modules do
         local child = self.modules[i]
-        local cur_nodes, cur_containers = 
+        local cur_nodes, cur_containers =
           child:findModules(typename, self)
-        assert(#cur_nodes == #cur_containers, 
+        assert(#cur_nodes == #cur_containers,
           'Internal error: incorrect return length')  -- This shouldn't happen
-        -- add the list items from our child to our list (ie return a 
+        -- add the list items from our child to our list (ie return a
         -- flattened table of the return nodes).
         for j = 1, #cur_nodes do
           nodes[#nodes+1] = cur_nodes[j]
@@ -312,4 +292,3 @@ function Module:listModules()
    end
    return modules
 end
-

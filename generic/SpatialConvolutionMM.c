@@ -96,9 +96,13 @@ static void nn_(unfolded_copy)(THTensor *finput, THTensor *input,
              ix = 0 - padding + kw;
              lpad = fmaxf(0,padding-kw);
              rpad = fmaxf(0,padding-(kW-kw-1));
-             if (lpad > 0) memset(dst+y*outputWidth, 0, sizeof(real)*lpad);
-             memcpy(dst+y*outputWidth+lpad, src+iy*inputWidth+ix+lpad, sizeof(real)*(outputWidth-rpad-lpad));
-             if (rpad > 0) memset(dst+y*outputWidth + outputWidth - rpad, 0, sizeof(real)*rpad);
+             if (outputWidth-rpad-lpad <= 0) {
+                memset(dst+y*outputWidth, 0, sizeof(real)*outputWidth);
+             } else {
+                if (lpad > 0) memset(dst+y*outputWidth, 0, sizeof(real)*lpad);
+                memcpy(dst+y*outputWidth+lpad, src+iy*inputWidth+ix+lpad, sizeof(real)*(outputWidth-rpad-lpad));
+                if (rpad > 0) memset(dst+y*outputWidth + outputWidth - rpad, 0, sizeof(real)*rpad);
+             }
           }
           else{
             for (x=0; x<outputWidth; x++){
@@ -207,10 +211,6 @@ static int nn_(SpatialConvolutionMM_updateOutput)(lua_State *L)
     THTensor_(resize3d)(finput, T, kW*kH*nInputPlane, outputHeight*outputWidth);
     THTensor_(resize4d)(output, T, nOutputPlane, outputHeight, outputWidth);
 
-    THStorage_(clearFlag)(input->storage, TH_STORAGE_REFCOUNTED);
-    THStorage_(clearFlag)(output->storage, TH_STORAGE_REFCOUNTED);
-    THStorage_(clearFlag)(finput->storage, TH_STORAGE_REFCOUNTED);
-
 #pragma omp parallel for private(t)
     for(t = 0; t < T; t++)
     {
@@ -227,9 +227,6 @@ static int nn_(SpatialConvolutionMM_updateOutput)(lua_State *L)
       THTensor_(free)(output_t);
       THTensor_(free)(finput_t);
     }
-    THStorage_(setFlag)(input->storage, TH_STORAGE_REFCOUNTED);
-    THStorage_(setFlag)(output->storage, TH_STORAGE_REFCOUNTED);
-    THStorage_(setFlag)(finput->storage, TH_STORAGE_REFCOUNTED);
   }
 
   return 1;
@@ -281,10 +278,6 @@ static int nn_(SpatialConvolutionMM_updateGradInput)(lua_State *L)
     long T = input->size[0];
     long t;
 
-    THStorage_(clearFlag)(gradInput->storage, TH_STORAGE_REFCOUNTED);
-    THStorage_(clearFlag)(gradOutput->storage, TH_STORAGE_REFCOUNTED);
-    THStorage_(clearFlag)(fgradInput->storage, TH_STORAGE_REFCOUNTED);
-
 #pragma omp parallel for private(t)
     for(t = 0; t < T; t++)
     {
@@ -298,10 +291,6 @@ static int nn_(SpatialConvolutionMM_updateGradInput)(lua_State *L)
       THTensor_(free)(gradOutput_t);
       THTensor_(free)(fgradInput_t);
     }
-
-    THStorage_(setFlag)(gradInput->storage, TH_STORAGE_REFCOUNTED);
-    THStorage_(setFlag)(gradOutput->storage, TH_STORAGE_REFCOUNTED);
-    THStorage_(setFlag)(fgradInput->storage, TH_STORAGE_REFCOUNTED);
   }
 
   THTensor_(transpose)(weight, weight, 0, 1);
@@ -313,7 +302,6 @@ static void nn_(SpatialConvolutionMM_accGradParameters_frame)(THTensor *gradOutp
                                                               real scale)
 {
   long i;
-  THTensor *gradOutputPlane = THTensor_(new)();
   THTensor *gradOutput2d = THTensor_(newWithStorage2d)(gradOutput->storage, gradOutput->storageOffset,
                                                        gradOutput->size[0], -1,
                                                        gradOutput->size[1]*gradOutput->size[2], -1);
@@ -332,7 +320,6 @@ static void nn_(SpatialConvolutionMM_accGradParameters_frame)(THTensor *gradOutp
     (gradBias->storage->data + gradBias->storageOffset)[i] += scale*sum;
   }
 
-  THTensor_(free)(gradOutputPlane);
   THTensor_(free)(gradOutput2d);
 }
 

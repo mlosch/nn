@@ -2,14 +2,14 @@ local L1HingeEmbeddingCriterion, parent = torch.class('nn.L1HingeEmbeddingCriter
 
 function L1HingeEmbeddingCriterion:__init(margin)
    parent.__init(self)
-   margin=margin or 1
-   self.margin = margin 
+   margin = margin or 1
+   self.margin = margin
    self.gradInput = {torch.Tensor(), torch.Tensor()}
-end 
- 
+end
+
 function L1HingeEmbeddingCriterion:updateOutput(input,y)
    self.output=input[1]:dist(input[2],1);
-   if y==-1 then
+   if y == -1 then
 	 self.output = math.max(0,self.margin - self.output);
    end
    return self.output
@@ -23,7 +23,7 @@ local function mathsign(t)
 end
 
 function L1HingeEmbeddingCriterion:updateGradInput(input, y)
-  self.gradInput[1]:resizeAs(input[1]) 
+  self.gradInput[1]:resizeAs(input[1])
   self.gradInput[2]:resizeAs(input[2])
   self.gradInput[1]:copy(input[1])
   self.gradInput[1]:add(-1, input[2])
